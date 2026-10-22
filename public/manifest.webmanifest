@@ -1,0 +1,14 @@
+{
+  "name": "Facts-Finder",
+  "short_name": "Facts-Finder",
+  "description": "Small facts. Big adventures.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B1B38",
+  "theme_color": "#0B1B38",
+  "icons": [
+    { "src": "/faxi/faxi-welcome.png", "sizes": "any", "type": "image/png", "purpose": "any" }
+  ]
+}
