@@ -4,6 +4,8 @@ import { motion, useReducedMotion } from "framer-motion"
 import { Faxi } from "@/components/faxi"
 import { GameButton } from "@/components/game-button"
 import { Overline } from "@/components/shell"
+import { hasNext } from "@/lib/next"
+import { usePlayer } from "@/store/player"
 
 const GREETING =
   "Hi, I am Faxi. Welcome to Facts-Finder, where you learn something new every day."
@@ -22,6 +24,8 @@ const rise = {
 export function GetStarted() {
   const navigate = useNavigate()
   const reduce = useReducedMotion()
+  const playAsGuest = usePlayer((state) => state.playAsGuest)
+  const [invited] = useState(() => hasNext())
   const [count, setCount] = useState(0)
   const [typing, setTyping] = useState(false)
 
@@ -98,7 +102,32 @@ export function GetStarted() {
         delay={0.4 + points.length * 0.38}
         className="mt-auto flex flex-col gap-3 pt-8"
       >
-        <GameButton onClick={() => navigate("/auth?mode=signup")}>Get started</GameButton>
+        {invited ? (
+          <>
+            <p className="text-center text-sm font-semibold text-muted-foreground">
+              Create an account to join the room. It takes a minute.
+            </p>
+            <GameButton onClick={() => navigate("/auth?mode=signup")}>Create account</GameButton>
+          </>
+        ) : (
+          <>
+            <GameButton
+              onClick={() => {
+                playAsGuest()
+                navigate("/home")
+              }}
+            >
+              Play as guest
+            </GameButton>
+            <GameButton variant="ghost" onClick={() => navigate("/auth?mode=signup")}>
+              Create account
+            </GameButton>
+            <p className="text-center text-xs text-muted-foreground">
+              No email needed to try it. Make an account any time to save your progress and play
+              with friends.
+            </p>
+          </>
+        )}
         <GameButton variant="ghost" onClick={() => navigate("/auth?mode=login")}>
           I already have an account
         </GameButton>

@@ -14,7 +14,7 @@ import { todayKey } from "@/data/questions"
 
 export function Home() {
   const navigate = useNavigate()
-  const { account, profile, email } = useSession()
+  const { account, profile, canPlay } = useSession()
   const hydrated = useHydrated()
   const startRound = usePlayer((state) => state.startRound)
   const level = playerLevel(profile.xp)
@@ -29,10 +29,10 @@ export function Home() {
   }
 
   useEffect(() => {
-    if (hydrated && !email) navigate("/start", { replace: true })
-  }, [email, hydrated, navigate])
+    if (hydrated && !canPlay) navigate("/start", { replace: true })
+  }, [canPlay, hydrated, navigate])
 
-  if (!hydrated || !email) return <main className="min-h-svh" />
+  if (!hydrated || !canPlay) return <main className="min-h-svh" />
 
   return (
     <main className="flex flex-col gap-4 px-5 pt-6">

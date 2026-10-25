@@ -4,6 +4,7 @@ import { Faxi } from "@/components/faxi"
 import { GameButton } from "@/components/game-button"
 import { PlayerAvatar } from "@/components/player-avatar"
 import { Overline } from "@/components/shell"
+import { SignUpPrompt } from "@/components/sign-up-prompt"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useRequireAccount } from "@/hooks/use-require-account"
@@ -25,7 +26,7 @@ const smallButton =
 
 export function Friends() {
   const navigate = useNavigate()
-  const { ready } = useRequireAccount()
+  const { ready, guest } = useRequireAccount({ guestPrompt: true })
   const [friends, setFriends] = useState<Friend[]>([])
   const [requests, setRequests] = useState<FriendRequest[]>([])
   const [query, setQuery] = useState("")
@@ -106,6 +107,16 @@ export function Friends() {
     if (problem) setError(problem)
     else setMessage(`${name} was removed.`)
     await refresh()
+  }
+
+  if (guest) {
+    return (
+      <SignUpPrompt
+        title="Sign up to add friends"
+        body="Friends need an account so they can find you by username. Your progress so far comes with you."
+        returnTo="/friends"
+      />
+    )
   }
 
   if (!ready) return <main className="min-h-svh" />

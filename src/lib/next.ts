@@ -20,6 +20,16 @@ export function rememberNext(path: string) {
   }
 }
 
+// True when someone was sent here from a page that needs an account (a room
+// link, for example). The start screen then asks them to sign up, not play as a guest.
+export function hasNext() {
+  try {
+    return safePath(sessionStorage.getItem(KEY)) !== null
+  } catch {
+    return false
+  }
+}
+
 export function takeNext() {
   try {
     const value = safePath(sessionStorage.getItem(KEY))

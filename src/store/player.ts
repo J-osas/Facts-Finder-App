@@ -109,8 +109,13 @@ type PlayerState = {
   userId: string | null
   account: Account | null
   profile: Profile
+  // A guest plays without an account. Their progress stays in this browser,
+  // in guestProfile, until they sign up and it moves into the new account.
+  guest: boolean
+  guestProfile: Profile | null
   lastResult: RoundResult | null
   round: RoundState | null
+  playAsGuest: () => void
   signUp: (input: SignupInput) => Promise<string | null>
   logIn: (email: string, password: string) => Promise<string | null>
   signOut: () => Promise<void>
@@ -201,6 +206,57 @@ function badgeFor(xp: number, clears: number) {
   if (xp >= XP_BAND) return "Scholar"
   if (clears > 0) return "Pathfinder"
   return "Curious mind"
+}
+
+function laterDate(a: string | null, b: string | null) {
+  if (!a) return b
+  if (!b) return a
+  return a > b ? a : b
+}
+
+// Keeps the best of both when a guest signs up or logs in: every level either
+// one cleared, and the higher XP and streak.
+function mergeProfiles(account: Profile, guest: Profile): Profile {
+  const paths = { ...account.paths }
+  for (const id of Object.keys(paths) as PathId[]) {
+    const mine = account.paths[id]
+    const theirs = guest.paths[id] ?? emptyPath()
+    paths[id] = {
+      completed: Array.from(new Set([...mine.completed, ...theirs.completed])).sort(
+        (x, y) => x - y
+      ),
+      attempts: Math.max(mine.attempts, theirs.attempts),
+    }
+  }
+  const xp = Math.max(account.xp, guest.xp)
+  return {
+    xp,
+    streak: Math.max(account.streak, guest.streak),
+    lastPlayedDate: laterDate(account.lastPlayedDate, guest.lastPlayedDate),
+    dailyClearedOn: laterDate(account.dailyClearedOn, guest.dailyClearedOn),
+    paths,
+    badge: badgeFor(xp, countClears(paths)),
+    feedbackPrompted: account.feedbackPrompted || guest.feedbackPrompted,
+  }
+}
+
+function readGuestProfile(value: unknown): Profile | null {
+  if (!value || typeof value !== "object") return null
+  const row = value as Partial<Profile>
+  const base = emptyProfile()
+  return {
+    xp: typeof row.xp === "number" ? row.xp : 0,
+    streak: typeof row.streak === "number" ? row.streak : 0,
+    lastPlayedDate: typeof row.lastPlayedDate === "string" ? row.lastPlayedDate : null,
+    dailyClearedOn: typeof row.dailyClearedOn === "string" ? row.dailyClearedOn : null,
+    paths: {
+      general: normalizePath(row.paths?.general),
+      history: normalizePath(row.paths?.history),
+      science: normalizePath(row.paths?.science),
+    },
+    badge: typeof row.badge === "string" && row.badge ? row.badge : base.badge,
+    feedbackPrompted: Boolean(row.feedbackPrompted),
+  }
 }
 
 function emailKey(email: string) {
@@ -301,6 +357,31 @@ async function pushProgress(userId: string, profile: Profile) {
     .eq("user_id", userId)
 }
 
+// Saves progress where it belongs: the account's row for a signed-in player,
+// this browser for a guest.
+function saveProfile(profile: Profile) {
+  const { userId, guest } = usePlayer.getState()
+  if (userId) void pushProgress(userId, profile)
+  else if (guest) usePlayer.setState({ guestProfile: profile })
+}
+
+// Runs once an account is open. A guest's progress is merged into it, then the
+// guest copy is dropped.
+function adoptGuestProgress() {
+  const { guestProfile, profile, userId } = usePlayer.getState()
+  if (!guestProfile || !userId) return
+  const merged = mergeProfiles(profile, guestProfile)
+  usePlayer.setState({ profile: merged, guest: false, guestProfile: null })
+  void pushProgress(userId, merged)
+}
+
+async function openAccount(userId: string, email: string) {
+  const failed = await loadAccount(userId, email)
+  if (failed) return failed
+  adoptGuestProgress()
+  return null
+}
+
 function authError(message: string) {
   const text = message.toLowerCase()
   if (text.includes("confirm")) {
@@ -322,8 +403,14 @@ export const usePlayer = create<PlayerState>()(
       userId: null,
       account: null,
       profile: emptyProfile(),
+      guest: false,
+      guestProfile: null,
       lastResult: null,
       round: null,
+      playAsGuest: () => {
+        const profile = get().guestProfile ?? emptyProfile()
+        set({ guest: true, guestProfile: profile, profile })
+      },
       signUp: async ({ firstName, lastName, email, password }) => {
         if (!supabase) return accountsOffline
         let username: string | null
@@ -348,7 +435,7 @@ export const usePlayer = create<PlayerState>()(
         if (!data.session || !data.user) {
           return "Turn off Confirm email in Supabase so a new account can sign in immediately."
         }
-        return loadAccount(data.user.id, data.user.email ?? emailKey(email))
+        return openAccount(data.user.id, data.user.email ?? emailKey(email))
       },
       logIn: async (email, password) => {
         if (!supabase) return accountsOffline
@@ -362,11 +449,18 @@ export const usePlayer = create<PlayerState>()(
             : "Those details don't match. Check your email and password."
         }
         if (!data.user) return "Those details don't match. Check your email and password."
-        return loadAccount(data.user.id, data.user.email ?? emailKey(email))
+        return openAccount(data.user.id, data.user.email ?? emailKey(email))
       },
       signOut: async () => {
         if (supabase) await supabase.auth.signOut()
-        set({ userId: null, account: null, profile: emptyProfile(), round: null })
+        set({
+          userId: null,
+          account: null,
+          profile: emptyProfile(),
+          guest: false,
+          guestProfile: null,
+          round: null,
+        })
       },
       changeUsername: async (username) => {
         const userId = get().userId
@@ -413,20 +507,22 @@ export const usePlayer = create<PlayerState>()(
       markFeedbackPrompted: () => {
         const profile = { ...get().profile, feedbackPrompted: true }
         set({ profile })
-        const userId = get().userId
-        if (userId) void pushProgress(userId, profile)
+        saveProfile(profile)
       },
       startRound: (path, level, mode = "level") => {
         const userId = get().userId
-        if (!userId) return
+        if (!userId && !get().guest) return
+        // Guests have no id, so they share one seed prefix. Their attempt count
+        // still changes the questions each time.
+        const seedId = userId ?? "guest"
         const profile = get().profile
         const attempts =
           mode === "daily" ? profile.paths[path].attempts : profile.paths[path].attempts + 1
         const count = mode === "daily" ? DAILY_COUNT : QUESTIONS_PER_LEVEL
         const seed =
           mode === "daily"
-            ? `${userId}|daily|${todayKey()}`
-            : `${userId}|${path}|${level}|${attempts}`
+            ? `${seedId}|daily|${todayKey()}`
+            : `${seedId}|${path}|${level}|${attempts}`
         const nextProfile: Profile = {
           ...profile,
           paths: {
@@ -455,7 +551,7 @@ export const usePlayer = create<PlayerState>()(
             questionStartedAt: Date.now(),
           },
         })
-        void pushProgress(userId, nextProfile)
+        saveProfile(nextProfile)
       },
       startRoomRound: (room) => {
         const userId = get().userId
@@ -530,7 +626,7 @@ export const usePlayer = create<PlayerState>()(
       continueRound: () => {
         const round = get().round
         const userId = get().userId
-        if (!round || !userId) return "results"
+        if (!round || (!userId && !get().guest)) return "results"
         // Rooms have no mistake limit: everyone answers every question.
         const failed = round.mode !== "room" && round.mistakes >= MISTAKE_LIMIT
         const finished = round.index >= round.questions.length - 1
@@ -571,7 +667,7 @@ export const usePlayer = create<PlayerState>()(
             badge: badgeFor(xp, countClears(profile.paths)),
           }
           set({ profile: nextProfile, round: null })
-          void pushProgress(userId, nextProfile)
+          saveProfile(nextProfile)
           pendingRoomSave = submitRoomScore({
             roomId: room.id,
             correct: round.correct,
@@ -643,18 +739,36 @@ export const usePlayer = create<PlayerState>()(
           },
           round: null,
         })
-        void pushProgress(userId, nextProfile)
+        saveProfile(nextProfile)
         return "results"
       },
       clearRound: () => set({ round: null }),
     }),
     {
       name: "facts-finder-player",
-      version: 1,
-      partialize: (state) => ({ lastResult: state.lastResult }),
-      migrate: (persisted) => {
-        const data = persisted as { lastResult?: RoundResult | null }
-        return { lastResult: data?.lastResult ?? null }
+      version: 2,
+      partialize: (state) => ({
+        lastResult: state.lastResult,
+        guest: state.guest,
+        guestProfile: state.guestProfile,
+      }),
+      migrate: (persisted) => persisted as Record<string, unknown>,
+      // A guest comes back to the progress saved in this browser.
+      merge: (persisted, current) => {
+        const data = (persisted ?? {}) as {
+          lastResult?: RoundResult | null
+          guest?: boolean
+          guestProfile?: unknown
+        }
+        const guestProfile = readGuestProfile(data.guestProfile)
+        const guest = Boolean(data.guest) && guestProfile !== null
+        return {
+          ...current,
+          lastResult: data.lastResult ?? null,
+          guest,
+          guestProfile,
+          profile: guest && guestProfile ? guestProfile : current.profile,
+        }
       },
     }
   )
@@ -704,5 +818,15 @@ export function bootPlayer() {
 export function useSession() {
   const account = usePlayer((state) => state.account)
   const profile = usePlayer((state) => state.profile)
-  return { email: account?.email ?? null, account, profile, userId: account?.id ?? null }
+  const guestFlag = usePlayer((state) => state.guest)
+  const guest = guestFlag && account === null
+  return {
+    email: account?.email ?? null,
+    account,
+    profile,
+    userId: account?.id ?? null,
+    guest,
+    // A signed-in player or a guest can play. Everyone else goes to Get started.
+    canPlay: account !== null || guest,
+  }
 }

@@ -26,7 +26,7 @@ const themes = [
 export function Profile() {
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
-  const { account, profile, email } = useSession()
+  const { account, profile, canPlay, guest } = useSession()
   const changeUsername = usePlayer((state) => state.changeUsername)
   const hydrated = useHydrated()
   const [username, setUsername] = useState("")
@@ -40,8 +40,8 @@ export function Profile() {
   )
 
   useEffect(() => {
-    if (hydrated && !email) navigate("/start", { replace: true })
-  }, [email, hydrated, navigate])
+    if (hydrated && !canPlay) navigate("/start", { replace: true })
+  }, [canPlay, hydrated, navigate])
 
   async function saveUsername() {
     const next = username.trim().toLowerCase()
@@ -65,7 +65,7 @@ export function Profile() {
     setUsername("")
   }
 
-  if (!hydrated || !email) return <main className="min-h-svh" />
+  if (!hydrated || !canPlay) return <main className="min-h-svh" />
 
   return (
     <main className="flex flex-col gap-4 px-5 pt-6">
@@ -76,8 +76,14 @@ export function Profile() {
           <h1 className="font-display truncate text-[28px] font-extrabold">
             {account?.firstName ?? "Explorer"}
           </h1>
-          <p className="truncate text-sm font-semibold">@{account?.username}</p>
-          <p className="truncate text-sm text-muted-foreground">{account?.email}</p>
+          {guest ? (
+            <p className="truncate text-sm text-muted-foreground">Playing as a guest</p>
+          ) : (
+            <>
+              <p className="truncate text-sm font-semibold">@{account?.username}</p>
+              <p className="truncate text-sm text-muted-foreground">{account?.email}</p>
+            </>
+          )}
         </div>
       </div>
       <dl className="grid grid-cols-3 gap-2">
@@ -92,6 +98,22 @@ export function Profile() {
           <p className="font-display text-lg font-extrabold">{profile.badge}</p>
         </div>
       </section>
+      {guest ? (
+        <section className="rounded-2xl border-2 border-cyan bg-card p-4">
+          <Overline>Save your progress</Overline>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Your XP and levels are only on this browser. Create an account to keep them, pick a
+            username and avatar, and play with friends.
+          </p>
+          <div className="mt-3 flex flex-col gap-2">
+            <GameButton onClick={() => navigate("/auth?mode=signup")}>Create account</GameButton>
+            <GameButton variant="ghost" onClick={() => navigate("/auth?mode=login")}>
+              I already have an account
+            </GameButton>
+          </div>
+        </section>
+      ) : null}
+      {!guest ? (
       <section className="rounded-2xl border border-border bg-card p-4">
         <Overline>Username</Overline>
         {canChange ? (
@@ -127,9 +149,12 @@ export function Profile() {
           </p>
         )}
       </section>
-      <GameButton variant="ghost" onClick={() => navigate("/avatar")}>
-        Create avatar
-      </GameButton>
+      ) : null}
+      {!guest ? (
+        <GameButton variant="ghost" onClick={() => navigate("/avatar")}>
+          Create avatar
+        </GameButton>
+      ) : null}
       <section>
         <Overline>Appearance</Overline>
         <div className="mt-2 grid grid-cols-3 gap-2 rounded-2xl bg-card p-1" role="group" aria-label="Colour mode">
@@ -155,7 +180,9 @@ export function Profile() {
       <section className="rounded-2xl border border-border bg-card p-4">
         <Overline>On this device</Overline>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          The colour mode stays on this phone. Your account, progress, and feedback are saved with your email.
+          {guest
+            ? "The colour mode and your guest progress stay on this phone. Clearing the browser data removes them."
+            : "The colour mode stays on this phone. Your account, progress, and feedback are saved with your email."}
         </p>
       </section>
       {account?.isAdmin ? (
@@ -166,9 +193,11 @@ export function Profile() {
       <GameButton variant="ghost" onClick={() => navigate("/feedback")}>
         Send feedback
       </GameButton>
-      <GameButton variant="ghost" onClick={() => navigate("/sign-out")}>
-        Sign out
-      </GameButton>
+      {!guest ? (
+        <GameButton variant="ghost" onClick={() => navigate("/sign-out")}>
+          Sign out
+        </GameButton>
+      ) : null}
     </main>
   )
 }

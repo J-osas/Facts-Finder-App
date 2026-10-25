@@ -24,7 +24,7 @@ export function LevelMap() {
   const requested = params.get("path")
   const path: PathId =
     requested === "history" || requested === "science" ? requested : "general"
-  const { profile, email } = useSession()
+  const { profile, canPlay } = useSession()
   const hydrated = useHydrated()
   const startRound = usePlayer((state) => state.startRound)
   const reduce = useReducedMotion()
@@ -77,14 +77,14 @@ export function LevelMap() {
   }, [completed, current, path])
 
   useEffect(() => {
-    if (hydrated && !email) navigate("/start", { replace: true })
-  }, [email, hydrated, navigate])
+    if (hydrated && !canPlay) navigate("/start", { replace: true })
+  }, [canPlay, hydrated, navigate])
 
   useEffect(() => {
     currentRef.current?.scrollIntoView({ block: "center" })
   }, [path, current])
 
-  if (!hydrated || !email) return <main className="min-h-svh" />
+  if (!hydrated || !canPlay) return <main className="min-h-svh" />
 
   function openLevel(level: number) {
     const progress = profile.paths[path]

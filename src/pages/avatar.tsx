@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { GameButton } from "@/components/game-button"
 import { PlayerAvatar } from "@/components/player-avatar"
+import { SignUpPrompt } from "@/components/sign-up-prompt"
 import { useHydrated } from "@/hooks/use-hydrated"
 import {
   avatarColors,
@@ -27,7 +28,7 @@ const portraitLabels: Record<PortraitId, string> = {
 export function AvatarScreen() {
   const navigate = useNavigate()
   const hydrated = useHydrated()
-  const { account, email } = useSession()
+  const { account, canPlay, guest } = useSession()
   const saveAvatar = usePlayer((state) => state.saveAvatar)
   const [choice, setChoice] = useState<AvatarChoice | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -35,10 +36,20 @@ export function AvatarScreen() {
   const avatar = choice ?? account?.avatar
 
   useEffect(() => {
-    if (hydrated && !email) navigate("/start", { replace: true })
-  }, [email, hydrated, navigate])
+    if (hydrated && !canPlay) navigate("/start", { replace: true })
+  }, [canPlay, hydrated, navigate])
 
-  if (!hydrated || !email || !avatar) return <main className="min-h-svh" />
+  if (hydrated && guest) {
+    return (
+      <SignUpPrompt
+        title="Sign up to make an avatar"
+        body="Your avatar belongs to your account. Your progress so far comes with you."
+        returnTo="/avatar"
+      />
+    )
+  }
+
+  if (!hydrated || !account || !avatar) return <main className="min-h-svh" />
 
   function pickPortrait(portrait: PortraitId) {
     setChoice({ portrait, color: avatar?.color ?? "cyan" })

@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion, useReducedMotion } from "framer-motion"
 import { Faxi } from "@/components/faxi"
@@ -6,19 +6,40 @@ import { Progress } from "@/components/ui/progress"
 import { useHydrated } from "@/hooks/use-hydrated"
 import { usePlayer } from "@/store/player"
 
+// How long the splash stays, and how long the bar takes to fill.
+const SPLASH_MS = 4000
+
 export function Splash() {
   const navigate = useNavigate()
-  const sessionEmail = usePlayer((state) => state.account?.email ?? null)
+  const canPlay = usePlayer((state) => state.account !== null || state.guest)
+  const authReady = usePlayer((state) => state.authReady)
   const hydrated = useHydrated()
   const reduce = useReducedMotion()
+  const [progress, setProgress] = useState(0)
+  const [finished, setFinished] = useState(false)
 
+  // The bar fills from empty to full over SPLASH_MS.
   useEffect(() => {
-    if (!hydrated) return
-    const timer = window.setTimeout(() => {
-      navigate(sessionEmail ? "/home" : "/start", { replace: true })
-    }, 1400)
-    return () => window.clearTimeout(timer)
-  }, [hydrated, navigate, sessionEmail])
+    const start = performance.now()
+    let frame = 0
+    const tick = (now: number) => {
+      const done = Math.min(1, (now - start) / SPLASH_MS)
+      setProgress(done * 100)
+      if (done < 1) {
+        frame = requestAnimationFrame(tick)
+      } else {
+        setFinished(true)
+      }
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [])
+
+  // Leave once the bar is full and the saved session has been checked.
+  useEffect(() => {
+    if (!finished || !hydrated || !authReady) return
+    navigate(canPlay ? "/home" : "/start", { replace: true })
+  }, [authReady, canPlay, finished, hydrated, navigate])
 
   return (
     <main className="flex min-h-svh flex-col items-center justify-between px-6 py-16 text-center">
@@ -40,7 +61,11 @@ export function Splash() {
         <p className="mt-3 text-muted-foreground">Small facts. Big adventures.</p>
       </motion.div>
       <div className="w-full">
-        <Progress value={70} className="h-2.5 bg-border" />
+        <Progress
+          value={progress}
+          aria-label="Loading"
+          className="h-2.5 bg-border [&>div]:bg-lime"
+        />
         <p className="mt-3 flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <Faxi pose="running" alt="" className="h-8 w-8" />
           Loading your adventure…

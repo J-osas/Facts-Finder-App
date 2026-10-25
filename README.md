@@ -101,3 +101,15 @@ Questions live in the app code, so a technical player could read the answers. Th
 4. Both tap Play now. Finish the round. Each is returned to the room with a saved note.
 5. The leaderboard lists both, ranked. Tapping Play now again says the room allows one attempt.
 6. A: Compete → Challenge B. B sees it under Your rooms.
+
+## Play as a guest
+
+The start screen has Play as guest. A guest plays levels, the daily challenge and topic paths with no email, name or password. Their XP, streak and cleared levels are saved in the browser (`localStorage`), not in Supabase, so nothing about a guest appears on the admin screen.
+
+- Rooms, friends and the leaderboard need an account. A guest who opens Compete or Friends sees a sign-up message.
+- The Profile and results screens show a Create account button.
+- When a guest signs up or logs in, their progress is merged into the account: every cleared level, and the higher XP and streak. The browser copy is then removed.
+- If someone opens a room link without an account, the start screen asks them to create an account instead, so they land in the room after sign-up.
+- Clearing the browser data removes guest progress.
+
+The splash screen stays for 4 seconds while its bar fills. Change `SPLASH_MS` in `src/pages/splash.tsx` to alter that.

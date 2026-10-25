@@ -14,7 +14,7 @@ export function Results() {
   const navigate = useNavigate()
   const result = usePlayer((state) => state.lastResult)
   const startRound = usePlayer((state) => state.startRound)
-  const { profile } = useSession()
+  const { profile, guest } = useSession()
   const markFeedbackPrompted = usePlayer((state) => state.markFeedbackPrompted)
   const reduce = useReducedMotion()
   const [showReview, setShowReview] = useState(false)
@@ -127,6 +127,23 @@ export function Results() {
           </p>
         ) : null}
       </Card>
+
+      {guest ? (
+        <Card className="mt-3 gap-2 rounded-2xl border-2 border-cyan bg-card p-4 ring-0">
+          <p className="font-display text-lg font-extrabold">Keep your progress</p>
+          <p className="text-sm text-muted-foreground">
+            You are playing as a guest, so your XP is only on this browser. Create an account to
+            save it and play with friends.
+          </p>
+          <button
+            type="button"
+            className="mt-1 self-start rounded-full bg-cyan px-4 py-2 text-sm font-extrabold text-ink"
+            onClick={() => navigate("/auth?mode=signup")}
+          >
+            Create account
+          </button>
+        </Card>
+      ) : null}
 
       <div className="mt-auto flex flex-col gap-3 pt-6">
         {result.passed && result.mode === "level" && result.level < LEVEL_COUNT ? (

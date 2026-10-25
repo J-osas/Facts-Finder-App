@@ -4,6 +4,7 @@ import { Faxi } from "@/components/faxi"
 import { GameButton } from "@/components/game-button"
 import { PlayerAvatar } from "@/components/player-avatar"
 import { Overline } from "@/components/shell"
+import { SignUpPrompt } from "@/components/sign-up-prompt"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -28,7 +29,7 @@ const smallButton =
 
 export function Compete() {
   const navigate = useNavigate()
-  const { ready } = useRequireAccount()
+  const { ready, guest } = useRequireAccount({ guestPrompt: true })
   const [path, setPath] = useState<PathId>("general")
   const [count, setCount] = useState<5 | 10>(10)
   const [code, setCode] = useState("")
@@ -81,6 +82,16 @@ export function Compete() {
       return
     }
     navigate(`/join/${normalizeCode(code)}`)
+  }
+
+  if (guest) {
+    return (
+      <SignUpPrompt
+        title="Sign up to play with friends"
+        body="Rooms, friends and the leaderboard need an account. Your progress so far comes with you."
+        returnTo="/compete"
+      />
+    )
   }
 
   if (!ready) return <main className="min-h-svh" />

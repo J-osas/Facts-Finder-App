@@ -9,11 +9,13 @@ export function SignOutScreen() {
   const navigate = useNavigate()
   const hydrated = useHydrated()
   const email = usePlayer((state) => state.account?.email ?? null)
+  const guest = usePlayer((state) => state.guest)
   const signOut = usePlayer((state) => state.signOut)
 
   useEffect(() => {
-    if (hydrated && !email) navigate("/auth?mode=login", { replace: true })
-  }, [email, hydrated, navigate])
+    // A guest has nothing to log out of. Send them to Profile.
+    if (hydrated && !email) navigate(guest ? "/profile" : "/auth?mode=login", { replace: true })
+  }, [email, guest, hydrated, navigate])
 
   if (!hydrated || !email) return <main className="min-h-svh" />
 
