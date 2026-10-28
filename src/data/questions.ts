@@ -1,3 +1,5 @@
+import { moreQuestions } from "./more-questions"
+
 export type Topic = "history" | "science" | "geography" | "culture"
 export type PathId = "general" | "history" | "science"
 
@@ -36,7 +38,7 @@ export const MISTAKE_LIMIT = 3
 export const QUESTION_SECONDS = 20
 export const XP_BAND = 500
 
-export const questions: Question[] = [
+const baseQuestions: Question[] = [
   {
     id: "h1",
     topic: "history",
@@ -419,6 +421,9 @@ export const questions: Question[] = [
   },
 ]
 
+// Every question in the game. New ones go in more-questions.ts.
+export const questions: Question[] = [...baseQuestions, ...moreQuestions]
+
 export function hashString(value: string) {
   let hash = 2166136261
   for (let index = 0; index < value.length; index += 1) {
@@ -464,6 +469,24 @@ export function pickQuestions(path: PathId, seed: string, count: number) {
     (question) => !shuffled.some((picked) => picked.id === question.id)
   )
   return [...shuffled, ...extra].slice(0, count)
+}
+
+// The questions for one level. Each path is put in one fixed order, and level 1
+// takes the first ten, level 2 the next ten, and so on, so two levels never
+// share a question until the pool runs out and the order wraps around.
+// Replaying a finished level moves on by one full set of levels, so a replay
+// brings fresh questions too. The seed only changes the order inside the round.
+export function levelQuestions(path: PathId, level: number, replay: boolean, seed: string) {
+  const pool = poolFor(path)
+  if (pool.length < QUESTIONS_PER_LEVEL) return pickQuestions(path, seed, QUESTIONS_PER_LEVEL)
+  const order = seededShuffle(pool, `facts-finder|${path}|order`)
+  const sets = level - 1 + (replay ? LEVEL_COUNT : 0)
+  const start = (sets * QUESTIONS_PER_LEVEL) % order.length
+  const picked = Array.from(
+    { length: QUESTIONS_PER_LEVEL },
+    (_, step) => order[(start + step) % order.length]
+  )
+  return seededShuffle(picked, seed)
 }
 
 export function todayKey(date = new Date()) {

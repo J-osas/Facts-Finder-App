@@ -7,6 +7,7 @@ import {
   QUESTIONS_PER_LEVEL,
   QUESTION_SECONDS,
   XP_BAND,
+  levelQuestions,
   pickQuestions,
   todayKey,
   yesterdayKey,
@@ -537,7 +538,12 @@ export const usePlayer = create<PlayerState>()(
             level,
             mode,
             room: null,
-            questions: pickQuestions(path, seed, count),
+            // The daily challenge is a draw from the whole pool. A level has its
+            // own set of ten, and replaying a finished level moves to a new set.
+            questions:
+              mode === "daily"
+                ? pickQuestions(path, seed, count)
+                : levelQuestions(path, level, profile.paths[path].completed.includes(level), seed),
             index: 0,
             mistakes: 0,
             points: 0,

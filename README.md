@@ -113,3 +113,13 @@ The start screen has Play as guest. A guest plays levels, the daily challenge an
 - Clearing the browser data removes guest progress.
 
 The splash screen stays for 4 seconds while its bar fills. Change `SPLASH_MS` in `src/pages/splash.tsx` to alter that.
+
+## Question bank
+
+- Questions live in `src/data/questions.ts` (the original set) and `src/data/more-questions.ts` (added later). Every question needs a unique `id`, four options, and a `correctIndex` from 0 to 3.
+- Each level deals its own set of 10. Levels 1 to 8 never share a question on the General path, and replaying a cleared level moves to a new set. The History and Science paths wrap around until their pools reach 80 questions each.
+- To add more, append to `more-questions.ts`. Keep the wording unambiguous, so only one option is correct.
+
+## Visitor stats
+
+The app includes Vercel Web Analytics. In the Vercel project, open Analytics and click Enable once. Guests do not show up in the admin screen, so use Analytics to count visitors.

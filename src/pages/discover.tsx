@@ -4,10 +4,10 @@ import { Overline } from "@/components/shell"
 import { PATHS, questions } from "@/data/questions"
 
 const topics = [
-  { title: "History", path: "history", detail: "Africa, empires, and turning points." },
+  { title: "History", path: "history", detail: "Empires, explorers, and turning points from every region." },
   { title: "Science", path: "science", detail: "Bodies, planets, and how things work." },
   { title: "Places", path: "general", detail: "Capitals, deserts, and rivers in the mix." },
-  { title: "Culture", path: "general", detail: "Books, sport, and film, folded into general play." },
+  { title: "Culture", path: "general", detail: "Music, books, festivals, and art, folded into general play." },
 ]
 
 export function Discover() {
@@ -22,7 +22,7 @@ export function Discover() {
           <Overline>Browse</Overline>
           <h1 className="font-display text-[28px] font-extrabold">Discover</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {questions.length} facts in this preview. Each player gets a different draw.
+            {questions.length} facts so far. Every level brings its own set of questions.
           </p>
         </div>
       </div>
